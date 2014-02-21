@@ -52,13 +52,11 @@ def check_uri(uri):
 def map_uri(uri_path):
     """Maps URI onto webroot system"""
     if isdir(uri_path):
-        list_dir = ['Current Path: %s' % (uri_path)]
+        list_dir = ['Current Path: %s \n' % (uri_path)]
         list_dir.extend(listdir(uri_path))
         body = "\r\n".join(list_dir)
-        #print body
         content_type = 'text/plain'
         encoding = 'UTF-8'
-        print "HERE"
         return (content_type, encoding, body)
     elif isfile(uri_path):
         content_type, encoding = guess_type(uri_path)
@@ -66,7 +64,7 @@ def map_uri(uri_path):
             body = file_handler.read()
         return (content_type, encoding, body)
     else:
-        raise Error500("Something is wrong...")
+        raise Error500("UH-OH SOMEBODY CALL 911...SERVER ERROR!")
 
 
 def parse_response(code, message, content_type=None, encoding=None):
@@ -74,44 +72,46 @@ def parse_response(code, message, content_type=None, encoding=None):
     header = []
     if code == 200:
         header.append("HTTP/1.1 200 OK")
-        header.append(
-            'Content-Type:%s; Char-Type:%s' % (content_type, encoding))
+        header.append('Content-Type:text/plain; Char-Type:None')
         header.append('Content-Length:%s' % str(len(message)))
         header.append("Date:%s" % formatdate(usegmt=True))
         return "\r\n".join(header) + '\r\n\r\n' + message
     else:
-        print "THERE"
-        print code
         header.append("HTTP/1.1 %s" % message)
-        return "\r\n".join(header) + '\r\n\r\n'
+        header.append(
+            'Content-Type:text/plain; Char-Type:None')
+        return "\r\n".join(header) + '\r\n\r\n' + message
 
 
 def run_server():
-    response = ''
+    """Setups and continually runs until Keyboard Interrupt"""
     server_socket = socket_setup()
     server_socket.bind((ADDRESS, PORT))
     server_socket.listen(1)
-    connection, address = server_socket.accept()
-    message = recv(connection, BUFFER_SIZE)
-    #request, body = message.split('\r\n', 1)
-    #method, uri, protocol = request.split()
-    method, uri, protocol = message.split()
-    try:
-        check_method(method)
-        path = check_uri(uri)
-        content_type, encoding, body = map_uri(path)
-        response = parse_response(200, body, content_type, encoding)
-    except Error400:
-        response = parse_response(404, "BAD REQUEST")
-    except Error404:
-        print "HERE"
-        response = parse_response(404, "FILE NOT FOUND")
-    except Error405:
-        response = parse_response(405, "METHOD NOT ALLOWED")
-    finally:
-        connection.sendall(response)
-        connection.shutdown(socket.SHUT_WR)
-        connection.close()
+
+    while True:
+        response = ''
+        try:
+            connection, address = server_socket.accept()
+            message = recv(connection, BUFFER_SIZE)
+            request, body = message.split('\r\n', 1)
+            method, uri, protocol = request.split()
+            check_method(method)
+            path = check_uri(uri)
+            content_type, encoding, body = map_uri(path)
+            response = parse_response(200, body, content_type, encoding)
+        except Error400:
+            response = parse_response(400, "BAD REQUEST")
+        except Error404:
+            response = parse_response(404, "FILE NOT FOUND")
+        except Error405:
+            response = parse_response(405, "METHOD NOT ALLOWED")
+        except KeyboardInterrupt:
+            break
+        finally:
+            connection.sendall(response)
+            connection.shutdown(socket.SHUT_WR)
+            connection.close()
 
 
 class Error400(Exception):
@@ -129,5 +129,5 @@ class Error405(Exception):
 class Error500(Exception):
     pass
 if __name__ == "__main__":
-    while True:
-        run_server()
+
+    run_server()
