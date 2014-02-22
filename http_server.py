@@ -29,13 +29,10 @@ def recv(socket, buffer_size):
 
 def check_method(method):
     """Checks proper methods"""
-    if method in PERMISSIONS:
-        if PERMISSIONS[method]:
-            pass
-        else:
-            raise Error405("METHOD NOT ALLOWED")
+    if PERMISSIONS[method]:
+        pass
     else:
-        raise Error400("BAD METHOD REQUEST")
+        raise Error405("METHOD NOT ALLOWED")
 
 
 def check_uri(uri):
@@ -64,20 +61,20 @@ def map_uri(uri_path):
             body = file_handler.read()
         return (content_type, encoding, body)
     else:
-        raise Error500("UH-OH SOMEBODY CALL 911...SERVER ERROR!")
+        raise Error500("SERVER ERROR!")
 
 
-def parse_response(code, message, content_type=None, encoding=None):
+def build_response(code, message, content_type=None, encoding=None):
     """Builds HTTP response based on HTTP Statuse"""
     header = []
     if code == 200:
         header.append("HTTP/1.1 200 OK")
-        header.append('Content-Type:text/plain; Char-Type:None')
+        header.append('Content-Type: %s ; Char-Type: %s')
         header.append('Content-Length:%s' % str(len(message)))
         header.append("Date:%s" % formatdate(usegmt=True))
         return "\r\n".join(header) + '\r\n\r\n' + message
     else:
-        header.append("HTTP/1.1 %s" % message)
+        header.append("HTTP/1.1 %s" % code)
         header.append(
             'Content-Type:text/plain; Char-Type:None')
         return "\r\n".join(header) + '\r\n\r\n' + message
@@ -99,13 +96,13 @@ def run_server():
             check_method(method)
             path = check_uri(uri)
             content_type, encoding, body = map_uri(path)
-            response = parse_response(200, body, content_type, encoding)
+            response = build_response(200, body, content_type, encoding)
         except Error400:
-            response = parse_response(400, "BAD REQUEST")
+            response = build_response(400, "BAD REQUEST")
         except Error404:
-            response = parse_response(404, "FILE NOT FOUND")
+            response = build_response(404, "FILE NOT FOUND")
         except Error405:
-            response = parse_response(405, "METHOD NOT ALLOWED")
+            response = build_response(405, "METHOD NOT ALLOWED")
         except KeyboardInterrupt:
             break
         finally:
